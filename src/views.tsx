@@ -1,0 +1,93 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import {
+  ArrowRight, BookOpen, CalendarDays, Check, ChevronRight, Clock3, Flame,
+  Gauge, Hand, Heart, Library, MessageCircle, Play, RotateCcw, Search,
+  Send, Sparkles, Star, Target, Trophy, Users,
+} from 'lucide-react'
+import { courses, enrolledCourses, type Category, type Course, type Level, type Section } from './data'
+
+export function CourseCard({ course, onOpen }: { course: Course; onOpen: (course: Course) => void }) {
+  return (
+    <article className="course-card">
+      <button className="course-image" onClick={() => onOpen(course)} aria-label={`Abrir ${course.title}`}>
+        <img src={course.image} alt="" /><span className={`level-badge ${course.color}`}>{course.level}</span><span className="play-small"><Play size={17} fill="currentColor" /></span>
+      </button>
+      <div className="course-copy"><p>{course.eyebrow}</p><h3>{course.title}</h3><span><Clock3 size={14} /> {course.meta}</span></div>
+    </article>
+  )
+}
+
+function Metric({ icon: Icon, value, label, note, tone }: { icon: typeof Flame; value: string; label: string; note: string; tone: string }) {
+  return <div className="metric"><span className={`metric-icon ${tone}`}><Icon size={20} /></span><div><span className="metric-value">{value}</span><span className="metric-label">{label}</span><small>{note}</small></div></div>
+}
+
+export function DailyChallenge({ completed, compact = false, onComplete }: { completed: boolean; compact?: boolean; onComplete: () => void }) {
+  const [answer, setAnswer] = useState<string | null>(null)
+  const [done, setDone] = useState(completed)
+  const isCorrect = answer === 'Gracias'
+  const finish = () => { if (!isCorrect) return; setDone(true); if (!completed) onComplete() }
+  return (
+    <section className={`practice-panel${done ? ' complete' : ''}${compact ? ' compact' : ''}`} aria-labelledby={compact ? 'practice-home-title' : 'practice-title'}>
+      <div className="practice-heading"><div><span className="section-kicker"><Sparkles size={14} /> RETO DE HOY</span><h2 id={compact ? 'practice-home-title' : 'practice-title'}>Una seña, tres opciones</h2></div><span className="reward">+15 pts</span></div>
+      {done ? <div className="success-state" role="status"><span><Check size={28} /></span><h3>Práctica completada</h3><p>Reconociste la seña “Gracias”. Tu objetivo de hoy ya está cubierto.</p><button className="text-button" onClick={() => { setDone(false); setAnswer(null) }}>Repasar de nuevo <RotateCcw size={15} /></button></div> : <>
+        <div className="sign-illustration" aria-label="Representación de una mano realizando la seña gracias"><div className="motion-line one" /><div className="motion-line two" /><Hand size={88} strokeWidth={1.3} /></div>
+        <p className="question">¿Qué significa esta seña?</p>
+        <div className="answers">{['Por favor', 'Gracias', 'Con permiso'].map((option, index) => <button key={option} onClick={() => setAnswer(option)} className={answer === option ? 'answer selected' : 'answer'} aria-pressed={answer === option}><span>{String.fromCharCode(65 + index)}</span>{option}</button>)}</div>
+        {answer && !isCorrect && <p className="feedback error" role="alert">Casi. Observa el movimiento desde el mentón hacia adelante.</p>}
+        <button className="verify-button" disabled={!answer || !isCorrect} onClick={finish}>Comprobar respuesta <ArrowRight size={17} /></button>
+      </>}
+    </section>
+  )
+}
+
+type CommonProps = { points: number; practiceCompleted: boolean; onPracticeComplete: () => void; onOpenCourse: (course: Course) => void; onNavigate: (section: Section) => void }
+
+export function HomeView({ points, practiceCompleted, onPracticeComplete, onOpenCourse, onNavigate }: CommonProps) {
+  const [category, setCategory] = useState<Category>('Para ti')
+  const recommended = courses.slice(1, 4).filter(course => category === 'Para ti' || course.category === category)
+  const todayLabel = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()).toLocaleUpperCase('es-MX')
+  return <>
+    <section className="welcome-row"><div><p className="eyebrow">{todayLabel}</p><h1>Hola, Andrea. <span>Sigamos aprendiendo.</span></h1><p>Hoy puedes cerrar tu semana con una práctica breve.</p></div><div className="streak-pill"><Flame size={23} fill="currentColor" /><div><strong>12 días</strong><span>Tu mejor racha</span></div></div></section>
+    <section className="hero-course" aria-labelledby="continue-title"><img src="https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1600&q=85" alt="Personas conversando durante una clase" /><div className="hero-shade" /><div className="hero-content"><span className="in-progress"><span /> EN PROGRESO</span><p>LSM DESDE CERO · MÓDULO 3</p><h2 id="continue-title">Presentarte y conocer a alguien</h2><p className="hero-description">Aprende a decir tu nombre, preguntar el de otra persona y compartir de dónde eres.</p><div className="hero-progress"><div><span>7 de 12 lecciones</span><strong>58%</strong></div><progress value="58" max="100">58%</progress></div><button className="primary-button" onClick={() => onOpenCourse(courses[0])}><Play size={17} fill="currentColor" /> Continuar lección</button></div><div className="teacher"><span className="avatar teacher-avatar">LV</span><div><small>Tu instructora</small><strong>Laura Vázquez</strong></div></div></section>
+    <section className="metrics-grid" aria-label="Tu progreso"><Metric icon={Flame} value="12" label="días de racha" note="Récord personal" tone="orange" /><Metric icon={Trophy} value={points.toLocaleString('es-MX')} label="puntos" note="Top 18% esta semana" tone="yellow" /><Metric icon={Gauge} value="4.2 h" label="de práctica" note="Este mes" tone="teal" /><Metric icon={Star} value="68" label="señas dominadas" note="8 nuevas esta semana" tone="blue" /></section>
+    <div className="content-grid"><section className="recommendations" aria-labelledby="recommend-title"><div className="section-title-row"><div><p className="eyebrow">SIGUE EXPLORANDO</p><h2 id="recommend-title">Recomendado para ti</h2></div><button className="text-button" onClick={() => onNavigate('Explorar')}>Ver catálogo <ArrowRight size={16} /></button></div><div className="filters" role="group" aria-label="Filtrar recomendaciones">{(['Para ti', 'Vocabulario', 'Conversación', 'Cultura Sorda'] as Category[]).map(item => <button key={item} className={category === item ? 'filter active' : 'filter'} onClick={() => setCategory(item)} aria-pressed={category === item}>{item}</button>)}</div><div className="course-list">{recommended.length ? recommended.map(course => <CourseCard key={course.id} course={course} onOpen={onOpenCourse} />) : <p className="empty-state">Pronto agregaremos más cursos en esta categoría.</p>}</div></section><DailyChallenge compact completed={practiceCompleted} onComplete={onPracticeComplete} /></div>
+    <section className="next-path"><span className="path-icon"><BookOpen /></span><div><p className="eyebrow">TU SIGUIENTE META</p><h2>Completa “LSM desde cero” esta semana</h2><p>Te faltan 5 lecciones. A tu ritmo actual, necesitas 18 minutos al día.</p></div><button className="secondary-button" onClick={() => onNavigate('Mis cursos')}>Ver mi ruta <ChevronRight size={17} /></button></section>
+  </>
+}
+
+export function ExploreView({ initialQuery, onQueryChange, onOpenCourse }: { initialQuery: string; onQueryChange: (value: string) => void; onOpenCourse: (course: Course) => void }) {
+  const [query, setQuery] = useState(initialQuery)
+  const [level, setLevel] = useState<Level>('Todos')
+  const [category, setCategory] = useState<Category>('Para ti')
+  useEffect(() => setQuery(initialQuery), [initialQuery])
+  const normalized = query.trim().toLocaleLowerCase('es-MX')
+  const results = courses.filter(course => (!normalized || `${course.title} ${course.description} ${course.eyebrow} ${course.category}`.toLocaleLowerCase('es-MX').includes(normalized)) && (level === 'Todos' || course.level === level) && (category === 'Para ti' || course.category === category))
+  const clear = () => { setQuery(''); setLevel('Todos'); setCategory('Para ti'); onQueryChange('') }
+  return <div className="view-page"><header className="view-hero explore-hero"><div><p className="eyebrow">CATÁLOGO MANOS MX</p><h1>Aprende con una ruta que sí tiene contexto</h1><p>Cursos breves, práctica visual y contenidos creados con participación de personas Sordas.</p></div><span className="hero-stat"><strong>{courses.length}</strong><small>cursos disponibles</small></span></header>
+    <section className="catalog-tools" aria-labelledby="catalog-title"><div className="section-title-row"><div><p className="eyebrow">ENCUENTRA TU SIGUIENTE CURSO</p><h2 id="catalog-title">Explorar catálogo</h2></div><span className="result-count" aria-live="polite">{results.length} {results.length === 1 ? 'resultado' : 'resultados'}</span></div><label className="catalog-search"><Search size={19} /><span className="sr-only">Buscar en el catálogo</span><input value={query} onChange={e => { setQuery(e.target.value); onQueryChange(e.target.value) }} placeholder="Busca conversación, familia, clasificadores…" /><kbd>Enter</kbd></label>
+      <div className="catalog-filter-row"><div><span>Nivel</span><div className="choice-group">{(['Todos', 'Principiante', 'Intermedio', 'Avanzado'] as Level[]).map(item => <button key={item} className={level === item ? 'choice active' : 'choice'} onClick={() => setLevel(item)} aria-pressed={level === item}>{item}</button>)}</div></div><div><span>Tema</span><div className="choice-group">{(['Para ti', 'Vocabulario', 'Conversación', 'Cultura Sorda', 'Gramática'] as Category[]).map(item => <button key={item} className={category === item ? 'choice active' : 'choice'} onClick={() => setCategory(item)} aria-pressed={category === item}>{item === 'Para ti' ? 'Todos' : item}</button>)}</div></div></div>
+    </section>{results.length ? <div className="catalog-grid">{results.map(course => <CourseCard key={course.id} course={course} onOpen={onOpenCourse} />)}</div> : <section className="catalog-empty"><Search size={28} /><h2>No encontramos coincidencias</h2><p>Prueba con una palabra más general o restablece los filtros para ver todo el catálogo.</p><button className="secondary-button" onClick={clear}>Restablecer filtros</button></section>}</div>
+}
+
+export function MyCoursesView({ onOpenCourse, onNavigate }: Pick<CommonProps, 'onOpenCourse' | 'onNavigate'>) {
+  const enrolled = enrolledCourses.map(item => ({ ...item, course: courses.find(course => course.id === item.courseId)! }))
+  return <div className="view-page"><header className="page-heading"><p className="eyebrow">TU APRENDIZAJE</p><h1>Mis cursos</h1><p>Retoma donde te quedaste y mantén visible el camino que sigue.</p></header><section className="route-summary" aria-labelledby="route-title"><div className="route-copy"><span className="path-icon"><Library /></span><div><p className="eyebrow">RUTA FUNDAMENTOS DE LSM</p><h2 id="route-title">7 de 23 lecciones completadas</h2><p>Vas a buen ritmo. Dos sesiones de 18 minutos te acercan a tu meta semanal.</p></div></div><div className="route-progress"><strong>30%</strong><progress value="30" max="100">30%</progress><span>Próximo logro: primeras 10 lecciones</span></div></section>
+    <section className="learning-section"><div className="section-title-row"><div><p className="eyebrow">CONTINÚA APRENDIENDO</p><h2>Cursos en progreso</h2></div><button className="text-button" onClick={() => onNavigate('Explorar')}>Buscar otro curso <ArrowRight size={16} /></button></div><div className="enrolled-list">{enrolled.filter(item => item.progress < 100).map(({ course, progress, next }) => <article className="enrolled-course" key={course.id}><img src={course.image} alt="" /><div className="enrolled-body"><div><span>{course.eyebrow}</span><h3>{course.title}</h3><p>Siguiente: {next}</p></div><div className="inline-progress"><span>{progress}%</span><progress value={progress} max="100">{progress}%</progress></div></div><button className="primary-button" onClick={() => onOpenCourse(course)}><Play size={16} fill="currentColor" /> Continuar</button></article>)}</div></section>
+    <section className="learning-section completed-section"><div className="section-title-row"><div><p className="eyebrow">TU HISTORIAL</p><h2>Completados</h2></div></div>{enrolled.filter(item => item.progress === 100).map(({ course }) => <article className="completed-course" key={course.id}><span><Check size={18} /></span><div><h3>{course.title}</h3><p>5 lecciones · Completado el 18 de julio</p></div><button className="secondary-button" onClick={() => onOpenCourse(course)}>Repasar curso</button></article>)}</section></div>
+}
+
+export function PracticeView({ completed, onComplete }: { completed: boolean; onComplete: () => void }) {
+  const [mode, setMode] = useState<'Reconocimiento' | 'Memoria' | 'Vocabulario'>('Reconocimiento')
+  const [revealed, setRevealed] = useState(false)
+  return <div className="view-page"><header className="page-heading practice-page-heading"><div><p className="eyebrow">CENTRO DE PRÁCTICA</p><h1>Entrena una habilidad a la vez</h1><p>Sesiones cortas para reconocer, recordar y usar señas con intención.</p></div><div className="daily-goal"><Target /><div><span>Objetivo diario</span><strong>{completed ? '1 de 1 completado' : '0 de 1 completado'}</strong></div><span className={completed ? 'goal-check done' : 'goal-check'}>{completed ? <Check /> : '1'}</span></div></header><div className="mode-tabs" role="tablist" aria-label="Modo de práctica">{(['Reconocimiento', 'Memoria', 'Vocabulario'] as const).map(item => <button role="tab" aria-selected={mode === item} key={item} className={mode === item ? 'mode-tab active' : 'mode-tab'} onClick={() => { setMode(item); setRevealed(false) }}>{item}</button>)}</div>
+    <div className="practice-layout"><div>{mode === 'Reconocimiento' ? <DailyChallenge completed={completed} onComplete={onComplete} /> : <section className="study-card" aria-live="polite"><p className="eyebrow">{mode === 'Memoria' ? 'TARJETA DE MEMORIA' : 'VOCABULARIO EN CONTEXTO'}</p><div className="study-sign"><Hand size={100} strokeWidth={1.2} /></div><h2>{mode === 'Memoria' ? (revealed ? 'Familia' : '¿Recuerdas esta seña?') : 'Familia'}</h2><p>{revealed ? 'La configuración y el movimiento representan a un grupo familiar. Practica con una expresión relajada.' : mode === 'Memoria' ? 'Observa la configuración de la mano. Intenta decir el significado antes de revelar la respuesta.' : 'Úsala en una frase: “Mi familia vive en Oaxaca”. En LSM, establece primero el referente y después la ubicación.'}</p><button className="primary-button" onClick={() => { if (revealed) { onComplete(); setRevealed(false) } else setRevealed(true) }}>{revealed ? 'Marcar como repasada' : 'Mostrar explicación'} <ArrowRight size={16} /></button></section>}</div><aside className="practice-aside"><p className="eyebrow">ESTA SEMANA</p><h2>4 de 5 días</h2><div className="week-dots" aria-label="Práctica completada cuatro de cinco días">{['L', 'M', 'M', 'J', 'V'].map((day, index) => <span key={`${day}-${index}`} className={index < 4 || completed ? 'done' : ''}>{index < 4 || completed ? <Check size={13} /> : day}</span>)}</div><p>Una práctica más mantiene tu constancia semanal.</p><hr /><strong>12 días de racha</strong><span>Tu mejor registro hasta ahora</span></aside></div></div>
+}
+
+type CommunityProps = { liked: boolean; onToggleLike: () => void; onToast: (message: string) => void }
+export function CommunityView({ liked, onToggleLike, onToast }: CommunityProps) {
+  const [comments, setComments] = useState(['Me ayudó mucho practicar primero el ritmo de la frase. — Sofía'])
+  const [comment, setComment] = useState('')
+  const submit = (event: FormEvent) => { event.preventDefault(); const value = comment.trim(); if (!value) return; setComments(items => [...items, `${value} — Andrea`]); setComment('') }
+  return <div className="view-page"><header className="page-heading"><p className="eyebrow">COMUNIDAD MANOS MX</p><h1>Aprendemos en comunidad</h1><p>Un espacio para compartir avances, preguntar con respeto y acercarnos a la Cultura Sorda desde sus propias voces.</p></header><div className="community-grid"><section className="event-feature" aria-labelledby="event-title"><div className="event-date"><strong>30</strong><span>JUL</span></div><div><p className="eyebrow">PRÓXIMO ENCUENTRO · EN LÍNEA</p><h2 id="event-title">Conversatorio: experiencias de jóvenes Sordos en México</h2><p>Con Daniela Luna y Marco Hernández. Interpretación LSM–español incluida.</p><span><CalendarDays size={15} /> Jueves, 19:00 h · 45 min</span></div><button className="primary-button" onClick={() => onToast('Tu lugar quedó reservado')}>Reservar lugar</button></section><aside className="community-challenge"><span><Users /></span><p className="eyebrow">RETO COMUNITARIO</p><h2>10,000 minutos de práctica</h2><progress value="7840" max="10000">78%</progress><div><strong>7,840 min</strong><span>entre 326 personas</span></div><button className="secondary-button" onClick={() => onToast('Tu práctica de hoy también suma')}>Sumarme al reto</button></aside></div>
+    <section className="feed" aria-labelledby="feed-title"><div className="section-title-row"><div><p className="eyebrow">PLAZA DE APRENDIZAJE</p><h2 id="feed-title">Lo que comparte la comunidad</h2></div></div><article className="post"><header><span className="avatar community-avatar">MR</span><div><strong>Mariana R.</strong><span>Estudiante · hace 2 h</span></div><span className="post-topic">Práctica</span></header><p>Hoy logré presentarme en LSM sin consultar mis apuntes. Me funcionó grabarme, revisar la expresión facial y repetir a menor velocidad. ¿Qué les ayuda a mantener el ritmo?</p><div className="post-actions"><button className={liked ? 'reacted' : ''} aria-pressed={liked} onClick={onToggleLike}><Heart size={17} fill={liked ? 'currentColor' : 'none'} /> {liked ? 25 : 24}</button><span><MessageCircle size={17} /> {comments.length}</span></div><div className="comments" aria-live="polite">{comments.map((item, index) => <p key={`${item}-${index}`}><MessageCircle size={14} />{item}</p>)}</div><form className="comment-form" onSubmit={submit}><label className="sr-only" htmlFor="community-comment">Escribe un comentario</label><input id="community-comment" value={comment} onChange={e => setComment(e.target.value)} placeholder="Comparte una idea respetuosa…" /><button aria-label="Publicar comentario" disabled={!comment.trim()}><Send size={17} /></button></form></article></section></div>
+}

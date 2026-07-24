@@ -1,0 +1,24 @@
+services:
+  api:
+    build: .
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 3001
+      DATABASE_PATH: /app/data/manos-mx.db
+      CORS_ORIGINS: http://localhost:5173
+      # Demo-only deployment acceptance. Remove when real auth replaces the demo boundary.
+      ALLOW_DEMO_AUTH_IN_PRODUCTION: "true"
+    ports:
+      - "3001:3001"
+    volumes:
+      - manos_mx_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  manos_mx_data:

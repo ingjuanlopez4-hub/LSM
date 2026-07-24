@@ -1,0 +1,28 @@
+export const openApiDocument = {
+  openapi: '3.1.0',
+  info: {
+    title: 'Manos MX API',
+    version: '1.0.0',
+    description: 'API local de aprendizaje. En modo demo todas las rutas /api/v1 usan la identidad fija Andrea M.; no se confía en headers enviados por el cliente.',
+  },
+  servers: [{ url: 'http://localhost:3001' }],
+  tags: ['System', 'Profile', 'Courses', 'Practice', 'Community', 'Events'].map(name => ({ name })),
+  paths: {
+    '/health': { get: { tags: ['System'], summary: 'Liveness', responses: { '200': { description: 'Process is alive' } } } },
+    '/ready': { get: { tags: ['System'], summary: 'Readiness including database', responses: { '200': { description: 'Ready' }, '503': { description: 'Not ready' } } } },
+    '/api/v1/me': { get: { tags: ['Profile'], summary: 'Demo identity and learning summary', responses: { '200': { description: 'Profile' } } } },
+    '/api/v1/me/goals': { patch: { tags: ['Profile'], summary: 'Update daily/weekly goals', requestBody: { required: true }, responses: { '200': { description: 'Updated profile' }, '422': { description: 'Invalid input' } } } },
+    '/api/v1/me/courses': { get: { tags: ['Courses'], summary: 'Enrolled courses and progress', responses: { '200': { description: 'Courses' } } } },
+    '/api/v1/courses': { get: { tags: ['Courses'], summary: 'Search and filter catalog', parameters: [{ name: 'q', in: 'query' }, { name: 'category', in: 'query' }, { name: 'level', in: 'query' }, { name: 'page', in: 'query' }, { name: 'pageSize', in: 'query' }], responses: { '200': { description: 'Paginated courses' } } } },
+    '/api/v1/courses/{courseId}': { get: { tags: ['Courses'], summary: 'Course with lessons', responses: { '200': { description: 'Course' }, '404': { description: 'Not found' } } } },
+    '/api/v1/courses/{courseId}/enrollment': { put: { tags: ['Courses'], summary: 'Idempotently enroll demo user', responses: { '200': { description: 'Already enrolled' }, '201': { description: 'Enrolled' } } } },
+    '/api/v1/courses/{courseId}/lessons/{lessonId}/progress': { put: { tags: ['Courses'], summary: 'Upsert progress; completion points are awarded once', requestBody: { required: true }, responses: { '200': { description: 'Progress saved' } } } },
+    '/api/v1/challenges/active': { get: { tags: ['Practice'], summary: 'Current challenge without exposing its answer', responses: { '200': { description: 'Challenge' }, '404': { description: 'No active challenge' } } } },
+    '/api/v1/challenges/{challengeId}/attempts': { post: { tags: ['Practice'], summary: 'Submit idempotent attempt', parameters: [{ name: 'Idempotency-Key', in: 'header', required: true }], requestBody: { required: true }, responses: { '200': { description: 'Replayed attempt' }, '201': { description: 'Attempt recorded' }, '422': { description: 'Invalid input' } } } },
+    '/api/v1/posts': { get: { tags: ['Community'], summary: 'Community feed with comments and likes', responses: { '200': { description: 'Posts' } } }, post: { tags: ['Community'], summary: 'Create a post', responses: { '201': { description: 'Created' } } } },
+    '/api/v1/posts/{postId}/comments': { post: { tags: ['Community'], summary: 'Comment on a post', responses: { '201': { description: 'Created' } } } },
+    '/api/v1/posts/{postId}/like': { put: { tags: ['Community'], summary: 'Idempotently like', responses: { '200': { description: 'Already liked' }, '201': { description: 'Liked' } } }, delete: { tags: ['Community'], summary: 'Idempotently remove like', responses: { '200': { description: 'Removed or already absent' } } } },
+    '/api/v1/events': { get: { tags: ['Events'], summary: 'List upcoming events and availability', responses: { '200': { description: 'Events' } } } },
+    '/api/v1/events/{eventId}/reservation': { put: { tags: ['Events'], summary: 'Reserve one place idempotently and atomically', responses: { '200': { description: 'Already reserved' }, '201': { description: 'Reserved' }, '409': { description: 'Event full' } } } },
+  },
+} as const
