@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'rea
 import { ArrowLeft, Bell, Check, ChevronRight, CircleHelp, Compass, Hand, Home, Library, Menu, Play, Search, Settings, Target, Users, X } from 'lucide-react'
 import { type Course, type Section } from './data'
 import { CommunityView, ExploreView, HomeView, MyCoursesView, PracticeView } from './views'
+import LandingPage from './LandingPage'
 
 const navItems: { label: Section; icon: typeof Home }[] = [
   { label: 'Inicio', icon: Home }, { label: 'Explorar', icon: Compass }, { label: 'Mis cursos', icon: Library }, { label: 'Práctica', icon: Target }, { label: 'Comunidad', icon: Users },
@@ -101,7 +102,7 @@ function MobileDrawer({ active, onNavigate, onClose, onHelp, onSettings }: { act
   return <><button className="menu-backdrop" onClick={onClose} aria-label="Cerrar menú" /><aside ref={drawerRef} className="mobile-drawer open" role="dialog" aria-modal="true" aria-label="Menú principal"><div className="drawer-head"><Brand /><button ref={closeRef} className="icon-button" onClick={onClose} aria-label="Cerrar menú"><X /></button></div><nav aria-label="Navegación móvil">{navItems.map(({ label, icon: Icon }) => <button key={label} className={active === label ? 'nav-item active' : 'nav-item'} onClick={() => onNavigate(label)} aria-current={active === label ? 'page' : undefined}><Icon size={20} />{label}</button>)}</nav><div className="drawer-utilities"><button className="nav-item" onClick={onHelp}><CircleHelp size={19} />Ayuda</button><button className="nav-item" onClick={onSettings}><Settings size={19} />Configuración</button></div></aside></>
 }
 
-function App() {
+function Dashboard() {
   const [active, setActive] = useState<Section>(sectionFromUrl)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [lesson, setLesson] = useState<Course | null>(null)
@@ -131,6 +132,22 @@ function App() {
   const common = { points, practiceCompleted, onPracticeComplete: completePractice, onOpenCourse: setLesson, onNavigate: navigate }
   const openUtility = (type: Utility) => { setMobileOpen(false); setUtility(type) }
   return <div className="app-shell"><Sidebar active={active} onNavigate={navigate} practiceCompleted={practiceCompleted} onHelp={() => openUtility('help')} onSettings={() => openUtility('settings')} onProfile={() => openUtility('profile')} />{mobileOpen && <MobileDrawer active={active} onNavigate={navigate} onClose={() => setMobileOpen(false)} onHelp={() => openUtility('help')} onSettings={() => openUtility('settings')} />}<div className="page-wrap"><Header query={query} onSearch={globalSearch} onMenu={() => setMobileOpen(true)} onHelp={() => openUtility('help')} onSettings={() => openUtility('settings')} onProfile={() => openUtility('profile')} /><main ref={mainRef} tabIndex={-1}>{active === 'Inicio' && <HomeView {...common} />}{active === 'Explorar' && <ExploreView initialQuery={query} onQueryChange={setQuery} onOpenCourse={setLesson} />}{active === 'Mis cursos' && <MyCoursesView onOpenCourse={setLesson} onNavigate={navigate} />}{active === 'Práctica' && <PracticeView completed={practiceCompleted} onComplete={completePractice} />}{active === 'Comunidad' && <CommunityView liked={liked} onToggleLike={() => setLiked(value => !value)} onToast={announce} />}</main><nav className="bottom-nav" aria-label="Navegación inferior">{navItems.map(({ label, icon: Icon }) => <button key={label} className={active === label ? 'active' : ''} onClick={() => navigate(label)} aria-current={active === label ? 'page' : undefined}><Icon size={20} /><span>{label === 'Mis cursos' ? 'Cursos' : label}</span></button>)}</nav></div>{lesson && <LessonModal course={lesson} onClose={() => setLesson(null)} onComplete={completeLesson} />}{utility && <UtilityDialog type={utility} onClose={() => setUtility(null)} />}{toast && <div className="toast" role="status" aria-live="polite"><Check size={17} />{toast}</div>}</div>
+}
+
+function isDashboardRoute() {
+  const path = window.location.hash.replace(/^#\/?/, '').split('?')[0]
+  return Object.values(sectionPaths).includes(path)
+}
+
+function App() {
+  const [showDashboard, setShowDashboard] = useState(isDashboardRoute)
+  useEffect(() => {
+    const syncEntry = () => setShowDashboard(isDashboardRoute())
+    window.addEventListener('hashchange', syncEntry)
+    return () => window.removeEventListener('hashchange', syncEntry)
+  }, [])
+  useEffect(() => { if (!showDashboard) document.title = 'Manos MX · Aprende Lengua de Señas Mexicana' }, [showDashboard])
+  return showDashboard ? <Dashboard /> : <LandingPage />
 }
 
 export default App
