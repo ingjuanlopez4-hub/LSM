@@ -22,11 +22,10 @@ function Sidebar({ active, onNavigate, practiceCompleted }: { active: Section; o
 
 function Header({ query, onSearch, onMenu }: { query: string; onSearch: (value: string) => void; onMenu: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [value, setValue] = useState(query)
-  useEffect(() => setValue(query), [query])
+  useEffect(() => { if (inputRef.current) inputRef.current.value = query }, [query])
   useEffect(() => { const shortcut = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); inputRef.current?.focus() } }; window.addEventListener('keydown', shortcut); return () => window.removeEventListener('keydown', shortcut) }, [])
-  const submit = (event: FormEvent) => { event.preventDefault(); onSearch(value.trim()) }
-  return <header className="topbar"><button className="icon-button mobile-menu" onClick={onMenu} aria-label="Abrir menú"><Menu /></button><div className="mobile-brand"><Brand /></div><form className="search-box" role="search" onSubmit={submit}><Search size={18} /><label className="sr-only" htmlFor="global-search">Buscar cursos o señas</label><input ref={inputRef} id="global-search" value={value} onChange={event => setValue(event.target.value)} placeholder="Buscar cursos, temas o señas" /><kbd>⌘ K</kbd></form><div className="top-actions"><button className="icon-button notification" aria-label="Notificaciones"><Bell size={20} /><span /></button><button className="top-profile" aria-label="Abrir perfil"><span className="avatar">AM</span><span>Andrea</span><ChevronRight size={16} /></button></div></header>
+  const submit = (event: FormEvent) => { event.preventDefault(); onSearch(inputRef.current?.value.trim() ?? '') }
+  return <header className="topbar"><button className="icon-button mobile-menu" onClick={onMenu} aria-label="Abrir menú"><Menu /></button><div className="mobile-brand"><Brand /></div><form className="search-box" role="search" onSubmit={submit}><Search size={18} /><label className="sr-only" htmlFor="global-search">Buscar cursos o señas</label><input ref={inputRef} id="global-search" defaultValue={query} placeholder="Buscar cursos, temas o señas" /><kbd>⌘ K</kbd></form><div className="top-actions"><button className="icon-button notification" aria-label="Notificaciones"><Bell size={20} /><span /></button><button className="top-profile" aria-label="Abrir perfil"><span className="avatar">AM</span><span>Andrea</span><ChevronRight size={16} /></button></div></header>
 }
 
 function LessonModal({ course, onClose, onComplete }: { course: Course; onClose: () => void; onComplete: () => void }) {

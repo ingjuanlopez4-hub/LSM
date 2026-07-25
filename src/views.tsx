@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import {
   ArrowRight, BookOpen, CalendarDays, Check, ChevronRight, Clock3, Flame,
   Gauge, Hand, Heart, Library, MessageCircle, Play, RotateCcw, Search,
@@ -56,15 +56,13 @@ export function HomeView({ points, practiceCompleted, onPracticeComplete, onOpen
 }
 
 export function ExploreView({ initialQuery, onQueryChange, onOpenCourse }: { initialQuery: string; onQueryChange: (value: string) => void; onOpenCourse: (course: Course) => void }) {
-  const [query, setQuery] = useState(initialQuery)
   const [level, setLevel] = useState<Level>('Todos')
   const [category, setCategory] = useState<Category>('Para ti')
-  useEffect(() => setQuery(initialQuery), [initialQuery])
-  const normalized = query.trim().toLocaleLowerCase('es-MX')
+  const normalized = initialQuery.trim().toLocaleLowerCase('es-MX')
   const results = courses.filter(course => (!normalized || `${course.title} ${course.description} ${course.eyebrow} ${course.category}`.toLocaleLowerCase('es-MX').includes(normalized)) && (level === 'Todos' || course.level === level) && (category === 'Para ti' || course.category === category))
-  const clear = () => { setQuery(''); setLevel('Todos'); setCategory('Para ti'); onQueryChange('') }
+  const clear = () => { setLevel('Todos'); setCategory('Para ti'); onQueryChange('') }
   return <div className="view-page"><header className="view-hero explore-hero"><div><p className="eyebrow">CATÁLOGO MANOS MX</p><h1>Aprende con una ruta que sí tiene contexto</h1><p>Cursos breves, práctica visual y contenidos creados con participación de personas Sordas.</p></div><span className="hero-stat"><strong>{courses.length}</strong><small>cursos disponibles</small></span></header>
-    <section className="catalog-tools" aria-labelledby="catalog-title"><div className="section-title-row"><div><p className="eyebrow">ENCUENTRA TU SIGUIENTE CURSO</p><h2 id="catalog-title">Explorar catálogo</h2></div><span className="result-count" aria-live="polite">{results.length} {results.length === 1 ? 'resultado' : 'resultados'}</span></div><label className="catalog-search"><Search size={19} /><span className="sr-only">Buscar en el catálogo</span><input value={query} onChange={e => { setQuery(e.target.value); onQueryChange(e.target.value) }} placeholder="Busca conversación, familia, clasificadores…" /><kbd>Enter</kbd></label>
+    <section className="catalog-tools" aria-labelledby="catalog-title"><div className="section-title-row"><div><p className="eyebrow">ENCUENTRA TU SIGUIENTE CURSO</p><h2 id="catalog-title">Explorar catálogo</h2></div><span className="result-count" aria-live="polite">{results.length} {results.length === 1 ? 'resultado' : 'resultados'}</span></div><label className="catalog-search"><Search size={19} /><span className="sr-only">Buscar en el catálogo</span><input value={initialQuery} onChange={e => onQueryChange(e.target.value)} placeholder="Busca conversación, familia, clasificadores…" /><kbd>Enter</kbd></label>
       <div className="catalog-filter-row"><div><span>Nivel</span><div className="choice-group">{(['Todos', 'Principiante', 'Intermedio', 'Avanzado'] as Level[]).map(item => <button key={item} className={level === item ? 'choice active' : 'choice'} onClick={() => setLevel(item)} aria-pressed={level === item}>{item}</button>)}</div></div><div><span>Tema</span><div className="choice-group">{(['Para ti', 'Vocabulario', 'Conversación', 'Cultura Sorda', 'Gramática'] as Category[]).map(item => <button key={item} className={category === item ? 'choice active' : 'choice'} onClick={() => setCategory(item)} aria-pressed={category === item}>{item === 'Para ti' ? 'Todos' : item}</button>)}</div></div></div>
     </section>{results.length ? <div className="catalog-grid">{results.map(course => <CourseCard key={course.id} course={course} onOpen={onOpenCourse} />)}</div> : <section className="catalog-empty"><Search size={28} /><h2>No encontramos coincidencias</h2><p>Prueba con una palabra más general o restablece los filtros para ver todo el catálogo.</p><button className="secondary-button" onClick={clear}>Restablecer filtros</button></section>}</div>
 }

@@ -3,6 +3,11 @@ dist
 dist-server
 data/*.db*
 .env
+.env.*
+!.env.example
+.vercel
+coverage
+npm-debug.log*
 .vitest
 .playwright-mcp
 graphify-out

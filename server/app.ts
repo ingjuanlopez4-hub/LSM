@@ -19,6 +19,12 @@ function parse<T extends z.ZodTypeAny>(schema: T, value: unknown): z.infer<T> {
   return result.data
 }
 
+const resourceIdSchema = z.string().min(1).max(128).regex(/^[\w-]+$/)
+
+function resourceId(value: string): string {
+  return parse(resourceIdSchema, value)
+}
+
 function getIdempotencyKey(request: Request): string {
   const value = request.header('Idempotency-Key')?.trim()
   if (!value || value.length > 128 || !/^[\w.:/-]+$/.test(value)) {
@@ -55,7 +61,8 @@ export function createApp({ db, config }: { db: Database; config: Config }) {
   app.set('trust proxy', false)
 
   app.use((request, response, next) => {
-    const requestId = request.header('X-Request-Id')?.slice(0, 100) || randomUUID()
+    const suppliedRequestId = request.header('X-Request-Id')?.trim()
+    const requestId = suppliedRequestId && /^[A-Za-z0-9._:-]{1,100}$/.test(suppliedRequestId) ? suppliedRequestId : randomUUID()
     response.locals.requestId = requestId
     response.setHeader('X-Request-Id', requestId)
     response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -76,20 +83,21 @@ export function createApp({ db, config }: { db: Database; config: Config }) {
     next()
   })
 
-  app.use(express.json({ limit: '32kb', strict: true }))
-
   app.use((request, response, next) => {
     const origin = request.header('Origin')
     if (!origin) return next()
+    response.vary('Origin')
     if (!config.corsOrigins.includes(origin)) return next(new ApiError(403, 'CORS_ORIGIN_DENIED', 'Origen no permitido.'))
     response.setHeader('Access-Control-Allow-Origin', origin)
-    response.setHeader('Vary', 'Origin')
     response.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type,Idempotency-Key,X-Request-Id')
     response.setHeader('Access-Control-Max-Age', '600')
     if (request.method === 'OPTIONS') return response.status(204).end()
     next()
   })
+
+  // Reject disallowed origins and answer preflights before spending resources parsing a body.
+  app.use(express.json({ limit: '32kb', strict: true }))
 
   const buckets = new Map<string, { count: number; resetAt: number }>()
   app.use((request, response, next) => {
@@ -127,7 +135,7 @@ export function createApp({ db, config }: { db: Database; config: Config }) {
   app.get('/api/v1/me', (_request, response) => response.json({ data: profile(db) }))
   app.patch('/api/v1/me/goals', (request, response, next) => {
     try {
-      const body = parse(z.object({ dailyMinutes: z.number().int().min(1).max(240).optional(), weeklyDays: z.number().int().min(1).max(7).optional() }).refine(value => Object.keys(value).length > 0), request.body)
+      const body = parse(z.object({ dailyMinutes: z.number().int().min(1).max(240).optional(), weeklyDays: z.number().int().min(1).max(7).optional() }).strict().refine(value => Object.keys(value).length > 0), request.body)
       db.prepare(`UPDATE users SET daily_goal_minutes=COALESCE(?,daily_goal_minutes), weekly_goal_days=COALESCE(?,weekly_goal_days), updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(body.dailyMinutes ?? null, body.weeklyDays ?? null, DEMO_USER_ID)
       response.json({ data: profile(db) })
     } catch (error) { next(error) }
@@ -135,7 +143,7 @@ export function createApp({ db, config }: { db: Database; config: Config }) {
 
   app.get('/api/v1/courses', (request, response, next) => {
     try {
-      const query = parse(z.object({ q: z.string().trim().max(100).optional(), category: z.enum(['Vocabulario', 'Conversación', 'Cultura Sorda', 'Gramática']).optional(), level: z.enum(['Principiante', 'Intermedio', 'Avanzado']).optional(), page: z.coerce.number().int().positive().default(1), pageSize: z.coerce.number().int().min(1).max(50).default(20) }), request.query)
+      const query = parse(z.object({ q: z.string().trim().max(100).optional(), category: z.enum(['Vocabulario', 'Conversación', 'Cultura Sorda', 'Gramática']).optional(), level: z.enum(['Principiante', 'Intermedio', 'Avanzado']).optional(), page: z.coerce.number().int().positive().max(100_000).default(1), pageSize: z.coerce.number().int().min(1).max(50).default(20) }).strict(), request.query)
       const filters = ['c.published=1']; const values: any[] = []
       if (query.q) { filters.push(`(lower(c.title) LIKE lower(?) ESCAPE '\\' OR lower(c.description) LIKE lower(?) ESCAPE '\\' OR lower(c.eyebrow) LIKE lower(?) ESCAPE '\\')`); const escaped = `%${query.q.replace(/[\\%_]/g, '\\$&')}%`; values.push(escaped, escaped, escaped) }
       if (query.category) { filters.push('c.category=?'); values.push(query.category) }
@@ -149,19 +157,21 @@ export function createApp({ db, config }: { db: Database; config: Config }) {
 
   app.get('/api/v1/courses/:courseId', (request, response, next) => {
     try {
-      const course = db.prepare(`SELECT c.*,COUNT(l.id) lesson_count FROM courses c LEFT JOIN lessons l ON l.course_id=c.id WHERE c.id=? AND c.published=1 GROUP BY c.id`).get(request.params.courseId) as Row | undefined
+      const courseId = resourceId(request.params.courseId)
+      const course = db.prepare(`SELECT c.*,COUNT(l.id) lesson_count FROM courses c LEFT JOIN lessons l ON l.course_id=c.id WHERE c.id=? AND c.published=1 GROUP BY c.id`).get(courseId) as Row | undefined
       if (!course) throw new ApiError(404, 'COURSE_NOT_FOUND', 'Curso no encontrado.')
       const lessons = db.prepare(`SELECT l.id,l.title,l.description,l.duration_seconds durationSeconds,l.position,l.points_reward pointsReward,
-        lp.status,lp.watched_seconds watchedSeconds,lp.completed_at completedAt FROM lessons l LEFT JOIN lesson_progress lp ON lp.lesson_id=l.id AND lp.user_id=? WHERE l.course_id=? ORDER BY l.position`).all(DEMO_USER_ID, request.params.courseId)
+        lp.status,lp.watched_seconds watchedSeconds,lp.completed_at completedAt FROM lessons l LEFT JOIN lesson_progress lp ON lp.lesson_id=l.id AND lp.user_id=? WHERE l.course_id=? ORDER BY l.position`).all(DEMO_USER_ID, courseId)
       response.json({ data: { ...courseFromRow(course), lessons } })
     } catch (error) { next(error) }
   })
 
   app.put('/api/v1/courses/:courseId/enrollment', (request, response, next) => {
     try {
-      if (!db.prepare('SELECT 1 FROM courses WHERE id=? AND published=1').get(request.params.courseId)) throw new ApiError(404, 'COURSE_NOT_FOUND', 'Curso no encontrado.')
-      const result = db.prepare('INSERT OR IGNORE INTO enrollments(user_id,course_id) VALUES (?,?)').run(DEMO_USER_ID, request.params.courseId)
-      response.status(result.changes ? 201 : 200).json({ data: { courseId: request.params.courseId, enrolled: true, created: Boolean(result.changes) } })
+      const courseId = resourceId(request.params.courseId)
+      if (!db.prepare('SELECT 1 FROM courses WHERE id=? AND published=1').get(courseId)) throw new ApiError(404, 'COURSE_NOT_FOUND', 'Curso no encontrado.')
+      const result = db.prepare('INSERT OR IGNORE INTO enrollments(user_id,course_id) VALUES (?,?)').run(DEMO_USER_ID, courseId)
+      response.status(result.changes ? 201 : 200).json({ data: { courseId, enrolled: true, created: Boolean(result.changes) } })
     } catch (error) { next(error) }
   })
 
@@ -176,22 +186,24 @@ export function createApp({ db, config }: { db: Database; config: Config }) {
 
   app.put('/api/v1/courses/:courseId/lessons/:lessonId/progress', (request, response, next) => {
     try {
-      const body = parse(z.object({ status: z.enum(['in_progress', 'completed']), watchedSeconds: z.number().int().min(0).max(86_400).default(0) }), request.body)
-      const lesson = db.prepare('SELECT id,points_reward FROM lessons WHERE id=? AND course_id=?').get(request.params.lessonId, request.params.courseId) as Row | undefined
+      const body = parse(z.object({ status: z.enum(['in_progress', 'completed']), watchedSeconds: z.number().int().min(0).max(86_400).default(0) }).strict(), request.body)
+      const courseId = resourceId(request.params.courseId)
+      const lessonId = resourceId(request.params.lessonId)
+      const lesson = db.prepare('SELECT id,points_reward FROM lessons WHERE id=? AND course_id=?').get(lessonId, courseId) as Row | undefined
       if (!lesson) throw new ApiError(404, 'LESSON_NOT_FOUND', 'Lección no encontrada en este curso.')
       const result = inTransaction(db, () => {
-        db.prepare('INSERT OR IGNORE INTO enrollments(user_id,course_id) VALUES (?,?)').run(DEMO_USER_ID, request.params.courseId)
-        const prior = db.prepare('SELECT status FROM lesson_progress WHERE user_id=? AND lesson_id=?').get(DEMO_USER_ID, request.params.lessonId) as Row | undefined
+        db.prepare('INSERT OR IGNORE INTO enrollments(user_id,course_id) VALUES (?,?)').run(DEMO_USER_ID, courseId)
+        const prior = db.prepare('SELECT status FROM lesson_progress WHERE user_id=? AND lesson_id=?').get(DEMO_USER_ID, lessonId) as Row | undefined
         const firstCompletion = body.status === 'completed' && prior?.status !== 'completed'
         const status = prior?.status === 'completed' ? 'completed' : body.status
         db.prepare(`INSERT INTO lesson_progress(user_id,lesson_id,status,watched_seconds,completed_at,updated_at)
           VALUES (?,?,?,?,CASE WHEN ?='completed' THEN CURRENT_TIMESTAMP END,CURRENT_TIMESTAMP)
           ON CONFLICT(user_id,lesson_id) DO UPDATE SET status=excluded.status, watched_seconds=MAX(lesson_progress.watched_seconds,excluded.watched_seconds),
-          completed_at=COALESCE(lesson_progress.completed_at,excluded.completed_at), updated_at=CURRENT_TIMESTAMP`).run(DEMO_USER_ID, request.params.lessonId, status, body.watchedSeconds, status)
+          completed_at=COALESCE(lesson_progress.completed_at,excluded.completed_at), updated_at=CURRENT_TIMESTAMP`).run(DEMO_USER_ID, lessonId, status, body.watchedSeconds, status)
         if (firstCompletion) db.prepare('UPDATE users SET points=points+?,updated_at=CURRENT_TIMESTAMP WHERE id=?').run(lesson.points_reward, DEMO_USER_ID)
         const counts = db.prepare(`SELECT COUNT(*) total,SUM(CASE WHEN lp.status='completed' THEN 1 ELSE 0 END) completed
-          FROM lessons l LEFT JOIN lesson_progress lp ON lp.lesson_id=l.id AND lp.user_id=? WHERE l.course_id=?`).get(DEMO_USER_ID, request.params.courseId) as Row
-        if (Number(counts.completed) === Number(counts.total)) db.prepare('UPDATE enrollments SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP) WHERE user_id=? AND course_id=?').run(DEMO_USER_ID, request.params.courseId)
+          FROM lessons l LEFT JOIN lesson_progress lp ON lp.lesson_id=l.id AND lp.user_id=? WHERE l.course_id=?`).get(DEMO_USER_ID, courseId) as Row
+        if (Number(counts.completed) === Number(counts.total)) db.prepare('UPDATE enrollments SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP) WHERE user_id=? AND course_id=?').run(DEMO_USER_ID, courseId)
         return { status, watchedSeconds: body.watchedSeconds, pointsAwarded: firstCompletion ? Number(lesson.points_reward) : 0, courseProgress: { completedLessons: Number(counts.completed), totalLessons: Number(counts.total), percent: Math.round(Number(counts.completed) * 100 / Number(counts.total)) } }
       })
       response.json({ data: result })
@@ -211,8 +223,9 @@ export function createApp({ db, config }: { db: Database; config: Config }) {
   app.post('/api/v1/challenges/:challengeId/attempts', (request, response, next) => {
     try {
       const key = getIdempotencyKey(request)
-      const body = parse(z.object({ answer: z.string().trim().min(1).max(200) }), request.body)
-      const challenge = db.prepare(`SELECT id,correct_answer,explanation,points_reward FROM challenges WHERE id=? AND datetime('now') BETWEEN datetime(active_from) AND datetime(active_until)`).get(request.params.challengeId) as Row | undefined
+      const body = parse(z.object({ answer: z.string().trim().min(1).max(200) }).strict(), request.body)
+      const challengeId = resourceId(request.params.challengeId)
+      const challenge = db.prepare(`SELECT id,correct_answer,explanation,points_reward FROM challenges WHERE id=? AND datetime('now') BETWEEN datetime(active_from) AND datetime(active_until)`).get(challengeId) as Row | undefined
       if (!challenge) throw new ApiError(404, 'CHALLENGE_NOT_FOUND', 'Reto no encontrado o inactivo.')
       const result = inTransaction(db, () => {
         const existing = db.prepare('SELECT id,answer,correct,points_awarded,created_at FROM challenge_attempts WHERE user_id=? AND challenge_id=? AND idempotency_key=?').get(DEMO_USER_ID, challenge.id, key) as Row | undefined
@@ -242,14 +255,17 @@ export function createApp({ db, config }: { db: Database; config: Config }) {
       COUNT(DISTINCT pl.user_id) like_count,MAX(CASE WHEN pl.user_id=? THEN 1 ELSE 0 END) liked
       FROM posts p JOIN users u ON u.id=p.user_id LEFT JOIN post_likes pl ON pl.post_id=p.id
       GROUP BY p.id ORDER BY p.created_at DESC LIMIT 50`).all(DEMO_USER_ID) as Row[]
-    const comments = db.prepare(`SELECT c.id,c.post_id,c.body,c.created_at,u.display_name,u.initials FROM comments c JOIN users u ON u.id=c.user_id
-      WHERE c.post_id IN (SELECT id FROM posts ORDER BY created_at DESC LIMIT 50) ORDER BY c.created_at`).all() as Row[]
+    const comments = db.prepare(`WITH recent_posts AS (SELECT id FROM posts ORDER BY created_at DESC LIMIT 50), ranked AS (
+      SELECT c.id,c.post_id,c.body,c.created_at,c.user_id,ROW_NUMBER() OVER (PARTITION BY c.post_id ORDER BY c.created_at DESC) rank
+      FROM comments c JOIN recent_posts p ON p.id=c.post_id)
+      SELECT r.id,r.post_id,r.body,r.created_at,u.display_name,u.initials FROM ranked r JOIN users u ON u.id=r.user_id
+      WHERE r.rank<=20 ORDER BY r.created_at`).all() as Row[]
     response.json({ data: posts.map(post => ({ id: post.id, topic: post.topic, body: post.body, createdAt: post.created_at, author: { displayName: post.display_name, initials: post.initials }, likes: Number(post.like_count), liked: Boolean(post.liked), comments: comments.filter(comment => comment.post_id === post.id).map(comment => ({ id: comment.id, body: comment.body, createdAt: comment.created_at, author: { displayName: comment.display_name, initials: comment.initials } })) })) })
   })
 
   app.post('/api/v1/posts', (request, response, next) => {
     try {
-      const body = parse(z.object({ topic: z.string().trim().min(1).max(50), body: z.string().trim().min(1).max(2000) }), request.body)
+      const body = parse(z.object({ topic: z.string().trim().min(1).max(50), body: z.string().trim().min(1).max(2000) }).strict(), request.body)
       const id = randomUUID(); db.prepare('INSERT INTO posts(id,user_id,topic,body) VALUES (?,?,?,?)').run(id, DEMO_USER_ID, body.topic, body.body)
       response.status(201).json({ data: { id, ...body } })
     } catch (error) { next(error) }
@@ -257,26 +273,29 @@ export function createApp({ db, config }: { db: Database; config: Config }) {
 
   app.post('/api/v1/posts/:postId/comments', (request, response, next) => {
     try {
-      const body = parse(z.object({ body: z.string().trim().min(1).max(1000) }), request.body)
-      if (!db.prepare('SELECT 1 FROM posts WHERE id=?').get(request.params.postId)) throw new ApiError(404, 'POST_NOT_FOUND', 'Publicación no encontrada.')
-      const id = randomUUID(); db.prepare('INSERT INTO comments(id,post_id,user_id,body) VALUES (?,?,?,?)').run(id, request.params.postId, DEMO_USER_ID, body.body)
-      response.status(201).json({ data: { id, postId: request.params.postId, body: body.body } })
+      const body = parse(z.object({ body: z.string().trim().min(1).max(1000) }).strict(), request.body)
+      const postId = resourceId(request.params.postId)
+      if (!db.prepare('SELECT 1 FROM posts WHERE id=?').get(postId)) throw new ApiError(404, 'POST_NOT_FOUND', 'Publicación no encontrada.')
+      const id = randomUUID(); db.prepare('INSERT INTO comments(id,post_id,user_id,body) VALUES (?,?,?,?)').run(id, postId, DEMO_USER_ID, body.body)
+      response.status(201).json({ data: { id, postId, body: body.body } })
     } catch (error) { next(error) }
   })
 
   app.put('/api/v1/posts/:postId/like', (request, response, next) => {
     try {
-      if (!db.prepare('SELECT 1 FROM posts WHERE id=?').get(request.params.postId)) throw new ApiError(404, 'POST_NOT_FOUND', 'Publicación no encontrada.')
-      const result = db.prepare('INSERT OR IGNORE INTO post_likes(post_id,user_id) VALUES (?,?)').run(request.params.postId, DEMO_USER_ID)
-      const count = Number((db.prepare('SELECT COUNT(*) count FROM post_likes WHERE post_id=?').get(request.params.postId) as Row).count)
+      const postId = resourceId(request.params.postId)
+      if (!db.prepare('SELECT 1 FROM posts WHERE id=?').get(postId)) throw new ApiError(404, 'POST_NOT_FOUND', 'Publicación no encontrada.')
+      const result = db.prepare('INSERT OR IGNORE INTO post_likes(post_id,user_id) VALUES (?,?)').run(postId, DEMO_USER_ID)
+      const count = Number((db.prepare('SELECT COUNT(*) count FROM post_likes WHERE post_id=?').get(postId) as Row).count)
       response.status(result.changes ? 201 : 200).json({ data: { liked: true, created: Boolean(result.changes), likes: count } })
     } catch (error) { next(error) }
   })
   app.delete('/api/v1/posts/:postId/like', (request, response, next) => {
     try {
-      if (!db.prepare('SELECT 1 FROM posts WHERE id=?').get(request.params.postId)) throw new ApiError(404, 'POST_NOT_FOUND', 'Publicación no encontrada.')
-      const result = db.prepare('DELETE FROM post_likes WHERE post_id=? AND user_id=?').run(request.params.postId, DEMO_USER_ID)
-      const count = Number((db.prepare('SELECT COUNT(*) count FROM post_likes WHERE post_id=?').get(request.params.postId) as Row).count)
+      const postId = resourceId(request.params.postId)
+      if (!db.prepare('SELECT 1 FROM posts WHERE id=?').get(postId)) throw new ApiError(404, 'POST_NOT_FOUND', 'Publicación no encontrada.')
+      const result = db.prepare('DELETE FROM post_likes WHERE post_id=? AND user_id=?').run(postId, DEMO_USER_ID)
+      const count = Number((db.prepare('SELECT COUNT(*) count FROM post_likes WHERE post_id=?').get(postId) as Row).count)
       response.json({ data: { liked: false, removed: Boolean(result.changes), likes: count } })
     } catch (error) { next(error) }
   })
@@ -289,12 +308,13 @@ export function createApp({ db, config }: { db: Database; config: Config }) {
   app.put('/api/v1/events/:eventId/reservation', (request, response, next) => {
     try {
       const result = inTransaction(db, () => {
-        const event = db.prepare('SELECT capacity FROM events WHERE id=?').get(request.params.eventId) as Row | undefined
+        const eventId = resourceId(request.params.eventId)
+        const event = db.prepare('SELECT capacity FROM events WHERE id=?').get(eventId) as Row | undefined
         if (!event) throw new ApiError(404, 'EVENT_NOT_FOUND', 'Evento no encontrado.')
-        if (db.prepare('SELECT 1 FROM event_reservations WHERE event_id=? AND user_id=?').get(request.params.eventId, DEMO_USER_ID)) return { created: false }
-        const count = Number((db.prepare('SELECT COUNT(*) count FROM event_reservations WHERE event_id=?').get(request.params.eventId) as Row).count)
+        if (db.prepare('SELECT 1 FROM event_reservations WHERE event_id=? AND user_id=?').get(eventId, DEMO_USER_ID)) return { created: false }
+        const count = Number((db.prepare('SELECT COUNT(*) count FROM event_reservations WHERE event_id=?').get(eventId) as Row).count)
         if (count >= Number(event.capacity)) throw new ApiError(409, 'EVENT_FULL', 'El evento ya no tiene lugares disponibles.')
-        db.prepare('INSERT INTO event_reservations(event_id,user_id) VALUES (?,?)').run(request.params.eventId, DEMO_USER_ID)
+        db.prepare('INSERT INTO event_reservations(event_id,user_id) VALUES (?,?)').run(eventId, DEMO_USER_ID)
         return { created: true }
       })
       response.status(result.created ? 201 : 200).json({ data: { eventId: request.params.eventId, reserved: true, created: result.created } })
@@ -305,6 +325,9 @@ export function createApp({ db, config }: { db: Database; config: Config }) {
   app.use((error: unknown, _request: Request, response: Response, _next: NextFunction) => {
     void _next
     if (error instanceof SyntaxError && 'body' in error) error = new ApiError(400, 'INVALID_JSON', 'El cuerpo JSON no es válido.')
+    if (error instanceof URIError) error = new ApiError(400, 'INVALID_URL_ENCODING', 'La URL contiene una codificación inválida.')
+    if (typeof error === 'object' && error !== null && 'type' in error && error.type === 'entity.too.large') error = new ApiError(413, 'PAYLOAD_TOO_LARGE', 'El cuerpo excede el límite de 32 KiB.')
+    if (typeof error === 'object' && error !== null && 'type' in error && (error.type === 'encoding.unsupported' || error.type === 'charset.unsupported')) error = new ApiError(415, 'UNSUPPORTED_ENCODING', 'La codificación del cuerpo no está soportada.')
     if (error instanceof ZodError) error = new ApiError(422, 'VALIDATION_ERROR', 'Datos inválidos.', error.flatten())
     const apiError = error instanceof ApiError ? error : new ApiError(500, 'INTERNAL_ERROR', 'Ocurrió un error interno.')
     if (apiError.status >= 500) console.error(JSON.stringify({ level: 'error', message: apiError.message, requestId: response.locals.requestId, error: error instanceof Error ? error.stack : String(error) }))
