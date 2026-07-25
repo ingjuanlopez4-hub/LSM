@@ -1,136 +1,134 @@
-import { ArrowRight, BookOpen, Check, Hand, Menu, MessageCircle, Play, Sparkles, Users, X } from 'lucide-react'
-import { useState } from 'react'
-import { courses } from './data'
+import { ArrowDown, ArrowRight, Eye, Hand, Menu, MessageCircle, MoveRight, ScanEye, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import './landing.css'
 
-const highlights = [
-  { number: '01', title: 'Mira', body: 'Lecciones visuales breves para observar cada movimiento con atención.' },
-  { number: '02', title: 'Practica', body: 'Retos cotidianos para recordar vocabulario y ganar confianza.' },
-  { number: '03', title: 'Conecta', body: 'Aprende la lengua junto con el contexto y la Cultura Sorda.' },
+const learningSequence = [
+  { number: '01', title: 'Observa el mensaje completo', body: 'Atiende al movimiento, la mirada, la expresión y al espacio; no solo a las manos.', icon: ScanEye },
+  { number: '02', title: 'Practica con intención', body: 'Repite en sesiones breves y vuelve a mirar antes de avanzar.', icon: MoveRight },
+  { number: '03', title: 'Conecta lengua y contexto', body: 'Acércate a la LSM junto con el contexto social y cultural que le da vida.', icon: MessageCircle },
 ]
 
 function LandingBrand() {
-  return <a className="landing-brand" href="#/" aria-label="Manos MX, inicio"><span><Hand size={22} strokeWidth={2.4} /></span><strong>manos<i>mx</i></strong></a>
+  return <a className="landing-brand" href="#inicio" aria-label="Manos MX, ir al inicio"><span aria-hidden="true"><Hand size={21} strokeWidth={2.3} /></span><strong>manos<i>mx</i></strong></a>
+}
+
+function CommunicationCanvas() {
+  return <figure className="communication-canvas" aria-labelledby="canvas-title canvas-caption">
+    <div className="canvas-meta"><span>CAMPO VISUAL</span><span>01 / 03</span></div>
+    <div className="canvas-stage" aria-hidden="true">
+      <span className="canvas-axis horizontal" />
+      <span className="canvas-axis vertical" />
+      <div className="person person-a"><span>A</span><small>PERSONA</small></div>
+      <div className="person person-b"><span>B</span><small>PERSONA</small></div>
+      <span className="dialogue-path path-one"><i />DIRECCIÓN</span>
+      <span className="dialogue-path path-two"><i />MIRADA</span>
+      <span className="space-label label-expression">EXPRESIÓN</span>
+      <span className="space-label label-space">ESPACIO</span>
+      <div className="canvas-center"><Eye size={25} /><strong id="canvas-title">Mira antes de repetir</strong><span>El significado también ocurre alrededor de las manos.</span></div>
+    </div>
+    <figcaption id="canvas-caption"><span>Diagrama conceptual</span>No representa ni enseña una seña de LSM.</figcaption>
+  </figure>
 }
 
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const featured = courses.slice(0, 3)
   const closeMenu = () => setMenuOpen(false)
 
-  return <div className="landing-page">
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [])
+
+  return <div className="landing-page" id="inicio">
+    <a className="skip-link" href="#contenido">Saltar al contenido</a>
     <header className="landing-header">
       <LandingBrand />
       <button className="landing-menu-button" onClick={() => setMenuOpen(value => !value)} aria-expanded={menuOpen} aria-controls="landing-navigation" aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}>{menuOpen ? <X /> : <Menu />}</button>
       <nav id="landing-navigation" className={menuOpen ? 'landing-nav open' : 'landing-nav'} aria-label="Navegación principal">
-        <a href="#metodo" onClick={closeMenu}>Cómo funciona</a>
-        <a href="#cursos" onClick={closeMenu}>Cursos</a>
-        <a href="#comunidad" onClick={closeMenu}>Comunidad</a>
+        <a href="#enfoque" onClick={closeMenu}>Enfoque</a>
+        <a href="#recorrido" onClick={closeMenu}>Recorrido</a>
+        <a href="#criterio" onClick={closeMenu}>Criterio cultural</a>
         <a className="landing-login" href="#/inicio" onClick={closeMenu}>Entrar</a>
-        <a className="landing-nav-cta" href="#/inicio" onClick={closeMenu}>Comenzar gratis <ArrowRight size={16} /></a>
+        <a className="landing-nav-cta" href="#/explorar" onClick={closeMenu}>Explorar plataforma <ArrowRight size={16} /></a>
       </nav>
     </header>
 
-    <main className="landing-main">
+    <main className="landing-main" id="contenido">
       <section className="landing-hero" aria-labelledby="landing-title">
         <div className="hero-copy">
           <p className="landing-kicker"><span /> LENGUA DE SEÑAS MEXICANA</p>
-          <h1 id="landing-title">Tus manos<br />ya tienen algo<br /><em>que decir.</em></h1>
-          <p className="hero-lead">Aprende LSM a tu ritmo con lecciones visuales, práctica real y una ruta que también te acerca a la Cultura Sorda.</p>
+          <h1 id="landing-title">Aprender a mirar.<br /><em>Empezar a dialogar.</em></h1>
+          <p className="hero-lead">Una plataforma para acercarte a la LSM desde la comunicación visual, el uso del espacio y el contexto cultural.</p>
           <div className="hero-actions">
-            <a className="landing-button primary" href="#/inicio">Empezar a aprender <ArrowRight size={18} /></a>
-            <a className="landing-button text" href="#metodo"><Play size={17} fill="currentColor" /> Conoce el método</a>
+            <a className="landing-button primary" href="#/explorar">Explorar el contenido <ArrowRight size={18} /></a>
+            <a className="landing-button text" href="#enfoque">Conocer el enfoque <ArrowDown size={17} /></a>
           </div>
-          <div className="hero-proof" aria-label="Características de la plataforma">
-            <span><Check size={14} /> Empieza desde cero</span>
-            <span><Check size={14} /> A tu propio ritmo</span>
-          </div>
+          <p className="prototype-note"><span>ESTADO DEL CONTENIDO</span> Prototipo sujeto a revisión de especialistas Sordos antes de publicación.</p>
         </div>
-        <div className="hero-visual" aria-label="Vista previa de una lección de lengua de señas">
-          <div className="hero-image-wrap">
-            <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1100&q=85" alt="Amigos conversando y aprendiendo juntos" />
-            <span className="image-label">APRENDER ES CONECTAR</span>
-          </div>
-          <div className="lesson-float">
-            <span className="float-icon"><Hand size={23} /></span>
-            <div><small>LECCIÓN 04</small><strong>Presentarte en LSM</strong><span><i style={{ width: '68%' }} /> 68%</span></div>
-            <button aria-label="Reproducir lección"><Play size={16} fill="currentColor" /></button>
-          </div>
-          <div className="visual-note"><Sparkles size={16} /><span><strong>Una seña a la vez</strong><small>Práctica breve todos los días</small></span></div>
+        <CommunicationCanvas />
+      </section>
+
+      <section className="visual-language-strip" aria-label="Dimensiones de la comunicación visual">
+        <p>El mensaje ocurre en <strong>todo el campo visual.</strong></p>
+        <div><span>MANOS</span><i /><span>MIRADA</span><i /><span>EXPRESIÓN</span><i /><span>ESPACIO</span></div>
+      </section>
+
+      <section className="approach-section" id="enfoque" aria-labelledby="approach-title">
+        <header className="section-heading">
+          <p className="landing-kicker">UN RECORRIDO PARA MIRAR CON ATENCIÓN</p>
+          <h2 id="approach-title">La interfaz sigue<br />la lógica del <em>diálogo.</em></h2>
+          <p>Primero orienta la atención. Después propone una práctica. Siempre devuelve el contenido a su contexto.</p>
+        </header>
+        <ol className="learning-sequence">
+          {learningSequence.map(({ number, title, body, icon: Icon }) => <li key={number}>
+            <span className="sequence-number">{number}</span>
+            <span className="sequence-icon" aria-hidden="true"><Icon /></span>
+            <div><h3>{title}</h3><p>{body}</p></div>
+            <ArrowRight className="sequence-arrow" aria-hidden="true" />
+          </li>)}
+        </ol>
+      </section>
+
+      <section className="route-section" id="recorrido" aria-labelledby="route-title">
+        <div className="route-index" aria-hidden="true"><span>RUTA</span><strong>01</strong><i /></div>
+        <div className="route-copy">
+          <p className="landing-kicker">PUNTO DE PARTIDA</p>
+          <h2 id="route-title">Una ruta inicial,<br />paso a paso.</h2>
+          <p>Explora el prototipo de cursos y práctica. Las lecciones visuales definitivas deberán usar video de cuerpo completo, controles de reproducción y validación lingüística.</p>
+          <a className="landing-button primary" href="#/explorar">Ver el catálogo <ArrowRight size={18} /></a>
+        </div>
+        <div className="route-outline" aria-label="Estructura propuesta de la ruta">
+          <p><span>01</span><strong>Atención visual</strong><small>Qué observar antes de imitar</small></p>
+          <p><span>02</span><strong>Práctica guiada</strong><small>Repetir, comparar y ajustar</small></p>
+          <p><span>03</span><strong>Uso en contexto</strong><small>Comprender intención y situación</small></p>
         </div>
       </section>
 
-      <section className="intro-strip" aria-label="Propuesta de valor">
-        <p>Una lengua <em>visual, viva</em> y profundamente mexicana.</p>
-        <div><span>LECCIONES VISUALES</span><span>PRÁCTICA DIARIA</span><span>CULTURA SORDA</span></div>
-      </section>
-
-      <section className="method-section" id="metodo" aria-labelledby="method-title">
-        <div className="section-heading">
-          <p className="landing-kicker">UN MÉTODO HECHO PARA VER</p>
-          <h2 id="method-title">Aprender LSM es<br />aprender a <em>mirar.</em></h2>
-          <p>Cada lección combina observación, repetición y contexto para ayudarte a comunicarte de manera clara y respetuosa.</p>
+      <section className="culture-commitment" id="criterio" aria-labelledby="commitment-title">
+        <div className="commitment-mark" aria-hidden="true"><span>VALIDACIÓN</span><strong>HUMANA</strong></div>
+        <div>
+          <p className="landing-kicker">CRITERIO DE PUBLICACIÓN</p>
+          <h2 id="commitment-title">La Cultura Sorda no es una nota al margen.</h2>
+          <p>Antes de publicar, el vocabulario, los ejemplos visuales y el enfoque cultural deben revisarse con personas Sordas especialistas en LSM. Esta versión documenta esa validación como pendiente; no la sustituye.</p>
         </div>
-        <div className="method-grid">
-          {highlights.map((item, index) => <article key={item.number} className={index === 1 ? 'method-card featured' : 'method-card'}>
-            <span>{item.number}</span>
-            <div className="method-icon">{index === 0 ? <Play /> : index === 1 ? <Hand /> : <MessageCircle />}</div>
-            <h3>{item.title}</h3>
-            <p>{item.body}</p>
-          </article>)}
-        </div>
-      </section>
-
-      <section className="courses-section" id="cursos" aria-labelledby="courses-title">
-        <div className="courses-heading">
-          <div><p className="landing-kicker">EMPIEZA POR AQUÍ</p><h2 id="courses-title">Tu primera ruta<br />en <em>LSM.</em></h2></div>
-          <p>Desde tu primera seña hasta una conversación cotidiana. Avanza en orden o explora lo que más necesitas.</p>
-          <a href="#/explorar">Ver todos los cursos <ArrowRight size={17} /></a>
-        </div>
-        <div className="landing-course-grid">
-          {featured.map((course, index) => <article className="landing-course-card" key={course.id}>
-            <a className="landing-course-image" href="#/explorar" aria-label={`Explorar ${course.title}`}>
-              <img src={course.image} alt="" />
-              <span>{String(index + 1).padStart(2, '0')}</span>
-              <i><Play size={17} fill="currentColor" /></i>
-            </a>
-            <p>{course.level} · {course.lessons} LECCIONES</p>
-            <h3>{course.title}</h3>
-            <span>{course.description}</span>
-          </article>)}
-        </div>
-      </section>
-
-      <section className="culture-section" id="comunidad" aria-labelledby="culture-title">
-        <div className="culture-image">
-          <img src="https://images.unsplash.com/photo-1529390079861-591de354faf5?auto=format&fit=crop&w=1100&q=85" alt="Grupo de personas reunidas en comunidad" />
-          <span><Users size={17} /> COMUNIDAD QUE ACOMPAÑA</span>
-        </div>
-        <div className="culture-copy">
-          <p className="landing-kicker">MÁS QUE VOCABULARIO</p>
-          <h2 id="culture-title">La lengua vive<br />en su <em>comunidad.</em></h2>
-          <p>Aprender LSM también significa conocer las historias, perspectivas e identidad de la Comunidad Sorda en México.</p>
-          <ul>
-            <li><BookOpen size={18} /><span><strong>Contexto en cada ruta</strong>Comprende el porqué, no solo el movimiento.</span></li>
-            <li><Users size={18} /><span><strong>Aprendizaje respetuoso</strong>Acércate a la cultura desde la escucha y la curiosidad.</span></li>
-          </ul>
-          <a href="#/comunidad">Conocer la comunidad <ArrowRight size={17} /></a>
-        </div>
+        <a href="#/comunidad">Ver espacio de comunidad <ArrowRight size={17} /></a>
       </section>
 
       <section className="final-cta" aria-labelledby="cta-title">
-        <span className="cta-hand"><Hand size={44} /></span>
-        <p className="landing-kicker">TU PRIMERA LECCIÓN TE ESPERA</p>
-        <h2 id="cta-title">Empieza hoy.<br /><em>Habla con tus manos.</em></h2>
-        <p>No necesitas experiencia previa. Solo curiosidad y unos minutos al día.</p>
-        <a className="landing-button primary" href="#/inicio">Comenzar gratis <ArrowRight size={18} /></a>
+        <p className="landing-kicker">EXPLORA EL PROTOTIPO</p>
+        <h2 id="cta-title">Mira el recorrido.<br /><em>Evalúa la experiencia.</em></h2>
+        <p>Entra a la plataforma y conoce cómo se organizan cursos, práctica y comunidad.</p>
+        <a className="landing-button primary" href="#/inicio">Entrar a Manos MX <ArrowRight size={18} /></a>
       </section>
     </main>
 
     <footer className="landing-footer">
       <LandingBrand />
-      <p>Aprende Lengua de Señas Mexicana con propósito.</p>
-      <nav aria-label="Navegación de pie de página"><a href="#metodo">Método</a><a href="#cursos">Cursos</a><a href="#comunidad">Comunidad</a></nav>
+      <p>Prototipo educativo de Lengua de Señas Mexicana.</p>
+      <nav aria-label="Navegación de pie de página"><a href="#enfoque">Enfoque</a><a href="#recorrido">Recorrido</a><a href="#criterio">Validación</a></nav>
       <small>© {new Date().getFullYear()} Manos MX</small>
     </footer>
   </div>
