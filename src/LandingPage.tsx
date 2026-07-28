@@ -1,38 +1,63 @@
-import { ArrowDown, ArrowRight, Eye, Hand, Menu, MessageCircle, MoveRight, ScanEye, X } from 'lucide-react'
+import { ArrowDownRight, ArrowRight, Eye, Hand, Menu, MoveUpRight, ScanFace, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import './landing.css'
 
 const learningSequence = [
-  { number: '01', title: 'Observa el mensaje completo', body: 'Atiende al movimiento, la mirada, la expresión y al espacio; no solo a las manos.', icon: ScanEye },
-  { number: '02', title: 'Practica con intención', body: 'Repite en sesiones breves y vuelve a mirar antes de avanzar.', icon: MoveRight },
-  { number: '03', title: 'Conecta lengua y contexto', body: 'Acércate a la LSM junto con el contexto social y cultural que le da vida.', icon: MessageCircle },
+  {
+    signal: 'Mirada',
+    title: 'Observa el mensaje completo',
+    body: 'Ubica hacia dónde mira la persona y cómo orienta el cuerpo antes de concentrarte en las manos.',
+  },
+  {
+    signal: 'Movimiento',
+    title: 'Repite con intención',
+    body: 'Practica en sesiones breves. Pausa, compara el recorrido y vuelve a observar antes de avanzar.',
+  },
+  {
+    signal: 'Contexto',
+    title: 'Comprende el uso real',
+    body: 'Relaciona cada recurso con una situación, una intención y el contexto cultural que le da sentido.',
+  },
 ]
 
 function LandingBrand() {
-  return <a className="landing-brand" href="#inicio" aria-label="Manos MX, ir al inicio"><span aria-hidden="true"><Hand size={21} strokeWidth={2.3} /></span><strong>manos<i>mx</i></strong></a>
+  return <a className="landing-brand" href="#inicio" aria-label="Manos MX, ir al inicio">
+    <span className="brand-hand" aria-hidden="true"><Hand size={22} strokeWidth={2.4} /></span>
+    <strong>MANOS<span>/MX</span></strong>
+  </a>
 }
 
-function CommunicationCanvas() {
-  return <figure className="communication-canvas" aria-labelledby="canvas-title canvas-caption">
-    <div className="canvas-meta"><span>CAMPO VISUAL</span><span>01 / 03</span></div>
-    <div className="canvas-stage" aria-hidden="true">
-      <span className="canvas-axis horizontal" />
-      <span className="canvas-axis vertical" />
-      <div className="person person-a"><span>A</span><small>PERSONA</small></div>
-      <div className="person person-b"><span>B</span><small>PERSONA</small></div>
-      <span className="dialogue-path path-one"><i />DIRECCIÓN</span>
-      <span className="dialogue-path path-two"><i />MIRADA</span>
-      <span className="space-label label-expression">EXPRESIÓN</span>
-      <span className="space-label label-space">ESPACIO</span>
-      <div className="canvas-center"><Eye size={25} /><strong id="canvas-title">Mira antes de repetir</strong><span>El significado también ocurre alrededor de las manos.</span></div>
+function VisualField() {
+  return <figure className="visual-field" aria-labelledby="field-title field-caption">
+    <div className="field-rail" aria-hidden="true">
+      <span>ENCUADRE COMPLETO</span>
+      <span>LSM · CAMPO 01</span>
     </div>
-    <figcaption id="canvas-caption"><span>Diagrama conceptual</span>No representa ni enseña una seña de LSM.</figcaption>
+    <div className="field-stage">
+      <div className="field-subject" aria-hidden="true">
+        <span className="subject-head" />
+        <span className="subject-body" />
+        <span className="subject-hand subject-hand-left" />
+        <span className="subject-hand subject-hand-right" />
+      </div>
+      <div className="focus-point focus-eyes" aria-hidden="true"><span>01</span><b>MIRADA</b></div>
+      <div className="focus-point focus-face" aria-hidden="true"><span>02</span><b>EXPRESIÓN</b></div>
+      <div className="focus-point focus-hands" aria-hidden="true"><span>03</span><b>MANOS</b></div>
+      <div className="focus-point focus-space" aria-hidden="true"><span>04</span><b>ESPACIO</b></div>
+      <svg className="field-trace" viewBox="0 0 500 640" preserveAspectRatio="none" aria-hidden="true">
+        <path pathLength="1" d="M88 176 C180 128 323 148 405 222 S373 387 242 385 101 463 152 550" />
+      </svg>
+      <div className="field-thesis">
+        <Eye size={23} aria-hidden="true" />
+        <p id="field-title">El significado no cabe en un par de manos.</p>
+      </div>
+    </div>
+    <figcaption id="field-caption"><span>NOTA DE USO</span> Diagrama de atención. No representa ni enseña una seña.</figcaption>
   </figure>
 }
 
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const closeMenu = () => setMenuOpen(false)
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -42,94 +67,99 @@ export default function LandingPage() {
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [])
 
+  const closeMenu = () => setMenuOpen(false)
+
   return <div className="landing-page" id="inicio">
     <a className="skip-link" href="#contenido">Saltar al contenido</a>
     <header className="landing-header">
       <LandingBrand />
-      <button className="landing-menu-button" onClick={() => setMenuOpen(value => !value)} aria-expanded={menuOpen} aria-controls="landing-navigation" aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}>{menuOpen ? <X /> : <Menu />}</button>
+      <p className="header-purpose">PRÁCTICA VISUAL<br />PARA INICIAR EN LSM</p>
+      <button className="landing-menu-button" onClick={() => setMenuOpen(value => !value)} aria-expanded={menuOpen} aria-controls="landing-navigation" aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}>
+        {menuOpen ? <X /> : <Menu />}
+      </button>
       <nav id="landing-navigation" className={menuOpen ? 'landing-nav open' : 'landing-nav'} aria-label="Navegación principal">
-        <a href="#enfoque" onClick={closeMenu}>Enfoque</a>
-        <a href="#recorrido" onClick={closeMenu}>Recorrido</a>
+        <a href="#metodo" onClick={closeMenu}>Método</a>
         <a href="#criterio" onClick={closeMenu}>Criterio cultural</a>
-        <a className="landing-login" href="#/inicio" onClick={closeMenu}>Entrar</a>
-        <a className="landing-nav-cta" href="#/explorar" onClick={closeMenu}>Explorar plataforma <ArrowRight size={16} /></a>
+        <a href="#/inicio" onClick={closeMenu}>Entrar</a>
+        <a className="nav-primary" href="#/explorar" onClick={closeMenu}>Explorar <ArrowRight size={16} /></a>
       </nav>
     </header>
 
     <main className="landing-main" id="contenido">
       <section className="landing-hero" aria-labelledby="landing-title">
         <div className="hero-copy">
-          <p className="landing-kicker"><span /> LENGUA DE SEÑAS MEXICANA</p>
-          <h1 id="landing-title">Aprender a mirar.<br /><em>Empezar a dialogar.</em></h1>
-          <p className="hero-lead">Una plataforma para acercarte a la LSM desde la comunicación visual, el uso del espacio y el contexto cultural.</p>
+          <p className="landing-kicker"><span>CURSO DE ENTRADA</span><span>PROTOTIPO 2026</span></p>
+          <h1 id="landing-title"><span>APRENDER</span><strong>A MIRAR</strong></h1>
+          <p className="hero-lead">La LSM se articula con las manos, la mirada, el rostro, el cuerpo y el espacio. Empieza por entrenar la atención al mensaje completo.</p>
           <div className="hero-actions">
-            <a className="landing-button primary" href="#/explorar">Explorar el contenido <ArrowRight size={18} /></a>
-            <a className="landing-button text" href="#enfoque">Conocer el enfoque <ArrowDown size={17} /></a>
+            <a className="landing-button primary" href="#/explorar">Explorar el contenido <MoveUpRight size={18} /></a>
+            <a className="landing-button quiet" href="#metodo">Ver cómo funciona <ArrowDownRight size={17} /></a>
           </div>
-          <p className="prototype-note"><span>ESTADO DEL CONTENIDO</span> Prototipo sujeto a revisión de especialistas Sordos antes de publicación.</p>
+          <p className="prototype-note"><strong>Contenido en revisión.</strong> Los materiales lingüísticos requieren validación de especialistas Sordos antes de publicarse.</p>
         </div>
-        <CommunicationCanvas />
+        <VisualField />
       </section>
 
-      <section className="visual-language-strip" aria-label="Dimensiones de la comunicación visual">
-        <p>El mensaje ocurre en <strong>todo el campo visual.</strong></p>
-        <div><span>MANOS</span><i /><span>MIRADA</span><i /><span>EXPRESIÓN</span><i /><span>ESPACIO</span></div>
+      <section className="field-statement" aria-label="Principio de aprendizaje">
+        <p>LAS MANOS ARTICULAN.</p>
+        <p>EL CUERPO SITÚA.</p>
+        <p className="statement-accent">LA MIRADA CONECTA.</p>
       </section>
 
-      <section className="approach-section" id="enfoque" aria-labelledby="approach-title">
-        <header className="section-heading">
-          <p className="landing-kicker">UN RECORRIDO PARA MIRAR CON ATENCIÓN</p>
-          <h2 id="approach-title">La interfaz sigue<br />la lógica del <em>diálogo.</em></h2>
-          <p>Primero orienta la atención. Después propone una práctica. Siempre devuelve el contenido a su contexto.</p>
+      <section className="method-section" id="metodo" aria-labelledby="method-title">
+        <header className="method-heading">
+          <p className="section-code">MÉTODO / TRES MOMENTOS</p>
+          <h2 id="method-title">No memorices una forma.<br /><span>Lee una situación.</span></h2>
+          <p>La secuencia organiza la atención antes de pedir una repetición. El orden importa: observar, practicar y volver al contexto.</p>
         </header>
         <ol className="learning-sequence">
-          {learningSequence.map(({ number, title, body, icon: Icon }) => <li key={number}>
-            <span className="sequence-number">{number}</span>
-            <span className="sequence-icon" aria-hidden="true"><Icon /></span>
-            <div><h3>{title}</h3><p>{body}</p></div>
-            <ArrowRight className="sequence-arrow" aria-hidden="true" />
+          {learningSequence.map((item, index) => <li key={item.signal}>
+            <span className="sequence-index">0{index + 1}</span>
+            <div className="sequence-signal"><i aria-hidden="true" />{item.signal}</div>
+            <div className="sequence-copy"><h3>{item.title}</h3><p>{item.body}</p></div>
+            <ArrowRight aria-hidden="true" />
           </li>)}
         </ol>
       </section>
 
-      <section className="route-section" id="recorrido" aria-labelledby="route-title">
-        <div className="route-index" aria-hidden="true"><span>RUTA</span><strong>01</strong><i /></div>
-        <div className="route-copy">
-          <p className="landing-kicker">PUNTO DE PARTIDA</p>
-          <h2 id="route-title">Una ruta inicial,<br />paso a paso.</h2>
-          <p>Explora el prototipo de cursos y práctica. Las lecciones visuales definitivas deberán usar video de cuerpo completo, controles de reproducción y validación lingüística.</p>
-          <a className="landing-button primary" href="#/explorar">Ver el catálogo <ArrowRight size={18} /></a>
+      <section className="practice-window" aria-labelledby="practice-title">
+        <div className="window-label" aria-hidden="true"><span>PRÁCTICA GUIADA</span><span>00:40</span></div>
+        <div className="window-demo" aria-hidden="true">
+          <span className="demo-eye"><Eye /></span>
+          <span className="demo-face"><ScanFace /></span>
+          <svg viewBox="0 0 620 230"><path pathLength="1" d="M45 166 C146 45 272 195 378 86 S535 60 580 150" /></svg>
+          <span className="demo-caption">OBSERVA EL RECORRIDO</span>
         </div>
-        <div className="route-outline" aria-label="Estructura propuesta de la ruta">
-          <p><span>01</span><strong>Atención visual</strong><small>Qué observar antes de imitar</small></p>
-          <p><span>02</span><strong>Práctica guiada</strong><small>Repetir, comparar y ajustar</small></p>
-          <p><span>03</span><strong>Uso en contexto</strong><small>Comprender intención y situación</small></p>
+        <div className="window-copy">
+          <p className="section-code">UNA LECCIÓN, TRES CONTROLES</p>
+          <h2 id="practice-title">Pausa.<br />Compara.<br /><span>Vuelve a mirar.</span></h2>
+          <p>Las lecciones propuestas usan video de cuerpo completo, velocidad ajustable y repetición por fragmentos. Nada avanza por ti.</p>
+          <a className="landing-button primary" href="#/inicio">Probar la plataforma <ArrowRight size={18} /></a>
         </div>
       </section>
 
-      <section className="culture-commitment" id="criterio" aria-labelledby="commitment-title">
-        <div className="commitment-mark" aria-hidden="true"><span>VALIDACIÓN</span><strong>HUMANA</strong></div>
-        <div>
-          <p className="landing-kicker">CRITERIO DE PUBLICACIÓN</p>
-          <h2 id="commitment-title">La Cultura Sorda no es una nota al margen.</h2>
-          <p>Antes de publicar, el vocabulario, los ejemplos visuales y el enfoque cultural deben revisarse con personas Sordas especialistas en LSM. Esta versión documenta esa validación como pendiente; no la sustituye.</p>
+      <section className="culture-section" id="criterio" aria-labelledby="culture-title">
+        <div className="culture-mark" aria-hidden="true"><span>ANTES DE<br />PUBLICAR</span><strong>REVISAR</strong></div>
+        <div className="culture-copy">
+          <p className="section-code">CRITERIO CULTURAL</p>
+          <h2 id="culture-title">La Cultura Sorda no es contexto adicional. <span>Es parte de la lengua.</span></h2>
+          <p>El vocabulario, los ejemplos y el enfoque pedagógico deben revisarse con personas Sordas especialistas en LSM. Este prototipo hace visible esa validación pendiente; no intenta sustituirla.</p>
         </div>
-        <a href="#/comunidad">Ver espacio de comunidad <ArrowRight size={17} /></a>
+        <a href="#/comunidad">Conocer el espacio de comunidad <ArrowRight size={17} /></a>
       </section>
 
       <section className="final-cta" aria-labelledby="cta-title">
-        <p className="landing-kicker">EXPLORA EL PROTOTIPO</p>
-        <h2 id="cta-title">Mira el recorrido.<br /><em>Evalúa la experiencia.</em></h2>
-        <p>Entra a la plataforma y conoce cómo se organizan cursos, práctica y comunidad.</p>
-        <a className="landing-button primary" href="#/inicio">Entrar a Manos MX <ArrowRight size={18} /></a>
+        <p className="section-code">LISTO PARA OBSERVAR</p>
+        <h2 id="cta-title">ENTRA CON<br /><span>LOS OJOS ABIERTOS.</span></h2>
+        <a className="landing-button inverted" href="#/explorar">Explorar Manos MX <MoveUpRight size={18} /></a>
       </section>
     </main>
 
     <footer className="landing-footer">
       <LandingBrand />
       <p>Prototipo educativo de Lengua de Señas Mexicana.</p>
-      <nav aria-label="Navegación de pie de página"><a href="#enfoque">Enfoque</a><a href="#recorrido">Recorrido</a><a href="#criterio">Validación</a></nav>
-      <small>© {new Date().getFullYear()} Manos MX</small>
+      <nav aria-label="Navegación de pie de página"><a href="#metodo">Método</a><a href="#criterio">Criterio cultural</a><a href="#/inicio">Entrar</a></nav>
+      <small>© {new Date().getFullYear()}</small>
     </footer>
   </div>
 }
